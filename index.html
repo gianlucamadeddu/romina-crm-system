@@ -28,6 +28,27 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             text-align: center;
+            position: relative;
+        }
+
+        .sync-status {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .sync-online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .sync-offline {
+            background: #f8d7da;
+            color: #721c24;
         }
 
         .tabs {
@@ -565,14 +586,38 @@
         .hidden {
             display: none;
         }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 2000;
+        }
+
+        .loading.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <div class="sync-status" id="sync-status">🔄 Connessione...</div>
             <h1>🎯 Lead Recovery System</h1>
-            <h2>Dashboard Pipeline Romina - Drag & Drop</h2>
+            <h2>Dashboard Pipeline Romina - Sistema Condiviso Real-Time</h2>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <h3>🔄 Sincronizzazione in corso...</h3>
+            <p>Caricamento dati dal cloud...</p>
         </div>
 
         <!-- Tabs -->
@@ -587,8 +632,9 @@
         <div id="pipeline-tab" class="tab-content active">
             <!-- Today Stats -->
             <div class="today-stats">
-                <h3>📊 OGGI: <span id="today-calls">8</span> chiamate fatte | <span id="today-ok">3</span> Lead Ok | <span id="today-closed">2</span> Chiusi</h3>
+                <h3>📊 OGGI: <span id="today-calls">0</span> chiamate fatte | <span id="today-ok">0</span> Lead Ok | <span id="today-closed">0</span> Chiusi</h3>
                 <p>💡 <strong>Trascina i lead</strong> tra le colonne per cambiare stato - il sistema registra automaticamente orario e data!</p>
+                <p>☁️ <strong>Sincronizzazione Real-Time</strong> - Tutti vedono gli aggiornamenti istantaneamente!</p>
             </div>
 
             <!-- Pipeline Columns -->
@@ -1016,16 +1062,33 @@
         </div>
     </div>
 
+    <!-- Firebase Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script>
-        // Enhanced data structure with activity tracking - SISTEMA VUOTO PRONTO PER USO
-        let leads = [
-            // Sistema vuoto - pronto per import dei tuoi lead
-        ];
+    <script type="module">
+        // Import Firebase functions
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBuZNxx2eAddnk3yaNH_SSnUPWPjY7pYf8",
+            authDomain: "romina-lead-system.firebaseapp.com",
+            projectId: "romina-lead-system",
+            storageBucket: "romina-lead-system.firebasestorage.app",
+            messagingSenderId: "1054691106851",
+            appId: "1:1054691106851:web:5ee9846d5f93c184609196"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Global variables
+        let leads = [];
         let currentFilter = 'tutti';
         let pendingImportData = null;
-        let pendingLeadForCommercial = null; // Lead in attesa di assegnazione commerciale
+        let pendingLeadForCommercial = null;
+        let isOnline = true;
 
         // Status configurations
         const statusConfig = {
@@ -1040,14 +1103,109 @@
 
         const commerciali = [
             "Alessandra Deidda",
-            "Alessandro Poma",
-            "Pamela Palmas", 
+            "Alessandro Poma", 
+            "Pamela Palmas",
             "Congiu Barbara",
             "Stefano Serra",
             "Valerio Pesapane"
         ];
 
-        function showTab(tabName) {
+        // Initialize app
+        async function initApp() {
+            showLoading(true);
+            
+            try {
+                // Set up real-time listener for leads
+                const leadsQuery = query(collection(db, 'leads'), orderBy('dataCreazione', 'desc'));
+                onSnapshot(leadsQuery, (snapshot) => {
+                    leads = [];
+                    snapshot.forEach((doc) => {
+                        leads.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    // Update UI
+                    renderPipeline();
+                    renderLeads();
+                    updateSyncStatus(true);
+                    showLoading(false);
+                }, (error) => {
+                    console.error("Error listening to leads:", error);
+                    updateSyncStatus(false);
+                    showLoading(false);
+                });
+
+            } catch (error) {
+                console.error("Error initializing app:", error);
+                updateSyncStatus(false);
+                showLoading(false);
+            }
+        }
+
+        // Sync status management
+        function updateSyncStatus(online) {
+            isOnline = online;
+            const statusEl = document.getElementById('sync-status');
+            
+            if (online) {
+                statusEl.textContent = '✅ Online - Sincronizzato';
+                statusEl.className = 'sync-status sync-online';
+            } else {
+                statusEl.textContent = '❌ Offline - Non sincronizzato';
+                statusEl.className = 'sync-status sync-offline';
+            }
+        }
+
+        function showLoading(show) {
+            const loadingEl = document.getElementById('loading');
+            if (show) {
+                loadingEl.classList.add('show');
+            } else {
+                loadingEl.classList.remove('show');
+            }
+        }
+
+        // Firebase operations
+        async function addLeadToFirebase(leadData) {
+            try {
+                const docRef = await addDoc(collection(db, 'leads'), {
+                    ...leadData,
+                    dataCreazione: serverTimestamp(),
+                    ultimaModifica: serverTimestamp()
+                });
+                console.log("Lead added with ID: ", docRef.id);
+                return docRef.id;
+            } catch (error) {
+                console.error("Error adding lead: ", error);
+                throw error;
+            }
+        }
+
+        async function updateLeadInFirebase(leadId, updates) {
+            try {
+                const leadRef = doc(db, 'leads', leadId);
+                await updateDoc(leadRef, {
+                    ...updates,
+                    ultimaModifica: serverTimestamp()
+                });
+                console.log("Lead updated successfully");
+            } catch (error) {
+                console.error("Error updating lead: ", error);
+                throw error;
+            }
+        }
+
+        async function deleteLeadFromFirebase(leadId) {
+            try {
+                await deleteDoc(doc(db, 'leads', leadId));
+                console.log("Lead deleted successfully");
+            } catch (error) {
+                console.error("Error deleting lead: ", error);
+                throw error;
+            }
+        }
+
+        // UI Functions
+        window.showTab = function(tabName) {
             // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
@@ -1072,7 +1230,7 @@
             } else if (tabName === 'reports') {
                 renderReports();
             }
-        }
+        };
 
         function renderPipeline() {
             const container = document.getElementById('pipeline-container');
@@ -1089,12 +1247,12 @@
                         </div>
                         <div class="column-content">
                             ${leadsInStatus.map(lead => `
-                                <div class="pipeline-lead" draggable="true" data-lead-id="${lead.id}" ondragstart="drag(event)" onclick="showLeadDetail(${lead.id})">
+                                <div class="pipeline-lead" draggable="true" data-lead-id="${lead.id}" ondragstart="drag(event)" onclick="showLeadDetail('${lead.id}')">
                                     <div class="lead-name">${lead.nome} ${lead.cognome}</div>
                                     <div class="lead-email">📧 ${lead.email}</div>
                                     ${lead.commerciale ? `<div class="lead-commercial">👤 ${lead.commerciale}</div>` : ''}
-                                    <textarea class="lead-notes" placeholder="Note..." onchange="updateLeadNotes(${lead.id}, this.value)" onclick="event.stopPropagation()">${lead.note}</textarea>
-                                    ${lead.attivita.length > 0 ? `
+                                    <textarea class="lead-notes" placeholder="Note..." onchange="updateLeadNotes('${lead.id}', this.value)" onclick="event.stopPropagation()">${lead.note || ''}</textarea>
+                                    ${lead.attivita && lead.attivita.length > 0 ? `
                                         <div class="auto-log">
                                             🕒 Ultima: ${formatTimestamp(lead.attivita[lead.attivita.length - 1].timestamp)}
                                         </div>
@@ -1119,7 +1277,7 @@
                     lead.nome.toLowerCase().includes(searchTerm) ||
                     lead.cognome.toLowerCase().includes(searchTerm) ||
                     lead.email.toLowerCase().includes(searchTerm) ||
-                    lead.commerciale.toLowerCase().includes(searchTerm);
+                    (lead.commerciale && lead.commerciale.toLowerCase().includes(searchTerm));
                 
                 return matchesFilter && matchesSearch;
             });
@@ -1139,15 +1297,15 @@
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
                         <label style="font-size: 0.8em;">Assegna:</label>
-                        <select onchange="assignCommercial(${lead.id}, this.value)" style="padding: 5px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.8em;">
+                        <select onchange="assignCommercial('${lead.id}', this.value)" style="padding: 5px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.8em;">
                             <option value="">Seleziona commerciale</option>
                             ${commerciali.map(comm => `
                                 <option value="${comm}" ${lead.commerciale === comm ? 'selected' : ''}>${comm}</option>
                             `).join('')}
                         </select>
                     </div>
-                    <textarea style="width: 100%; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9em; resize: vertical; min-height: 60px;" placeholder="💭 Note per il commerciale..." onchange="updateLeadNotes(${lead.id}, this.value)">${lead.note}</textarea>
-                    <button onclick="showLeadDetail(${lead.id})" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px;">📋 Vedi Timeline</button>
+                    <textarea style="width: 100%; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9em; resize: vertical; min-height: 60px;" placeholder="💭 Note per il commerciale..." onchange="updateLeadNotes('${lead.id}', this.value)">${lead.note || ''}</textarea>
+                    <button onclick="showLeadDetail('${lead.id}')" style="background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px;">📋 Vedi Timeline</button>
                 </div>
             `).join('');
 
@@ -1155,15 +1313,10 @@
         }
 
         function updateStats() {
-            const stats = {};
-            Object.keys(statusConfig).forEach(status => {
-                stats[status] = leads.filter(lead => lead.stato === status).length;
-            });
-
             // Update today's stats
             const today = new Date().toDateString();
             const todayActivities = leads.flatMap(lead => 
-                lead.attivita.filter(a => new Date(a.timestamp).toDateString() === today && a.azione === 'Chiamata effettuata')
+                (lead.attivita || []).filter(a => new Date(a.timestamp).toDateString() === today && a.azione === 'Chiamata effettuata')
             );
             
             document.getElementById('today-calls').textContent = todayActivities.length;
@@ -1172,48 +1325,41 @@
         }
 
         // Drag and drop functions
-        function allowDrop(ev) {
+        window.allowDrop = function(ev) {
             ev.preventDefault();
             if (ev.currentTarget && ev.currentTarget.classList) {
                 ev.currentTarget.classList.add('drag-over');
             }
-        }
+        };
 
-        function dragLeave(ev) {
+        window.dragLeave = function(ev) {
             if (ev.currentTarget && ev.currentTarget.classList) {
                 ev.currentTarget.classList.remove('drag-over');
             }
-        }
+        };
 
-        function drag(ev) {
-            console.log('Drag iniziato');
+        window.drag = function(ev) {
             if (ev.target && ev.target.getAttribute) {
                 const leadId = ev.target.getAttribute('data-lead-id');
-                console.log('Lead ID:', leadId);
                 if (leadId && ev.dataTransfer) {
                     ev.dataTransfer.setData("text", leadId);
                     ev.target.classList.add('dragging');
                 }
             }
-        }
+        };
 
-        function drop(ev) {
-            console.log('Drop eseguito');
+        window.drop = async function(ev) {
             ev.preventDefault();
             if (ev.currentTarget && ev.currentTarget.classList) {
                 ev.currentTarget.classList.remove('drag-over');
             }
             
             if (ev.dataTransfer) {
-                const leadIdString = ev.dataTransfer.getData("text");
-                const leadId = parseFloat(leadIdString);
+                const leadId = ev.dataTransfer.getData("text");
                 const newStatus = ev.currentTarget.getAttribute('data-status');
-                console.log('Lead ID drop:', leadId, 'Nuovo status:', newStatus);
                 const lead = leads.find(l => l.id === leadId);
                 
                 if (lead && lead.stato !== newStatus && newStatus) {
-                    console.log('Aggiorno lead da', lead.stato, 'a', newStatus);
-                    
                     // Se il nuovo stato è "lead-ok", apri il modal per assegnare il commerciale
                     if (newStatus === 'lead-ok') {
                         pendingLeadForCommercial = { leadId: leadId, oldStatus: lead.stato, newStatus: newStatus };
@@ -1225,13 +1371,11 @@
                                 el.classList.remove('dragging');
                             }
                         });
-                        return; // Esci dalla funzione, l'assegnazione avverrà nel modal
+                        return;
                     }
                     
                     // Per tutti gli altri stati, procedi normalmente
-                    updateLeadStatus(leadId, newStatus);
-                } else {
-                    console.log('Nessun aggiornamento necessario o errore. Lead trovato:', !!lead, 'Stati diversi:', lead?.stato !== newStatus);
+                    await updateLeadStatus(leadId, newStatus);
                 }
             }
             
@@ -1241,29 +1385,34 @@
                     el.classList.remove('dragging');
                 }
             });
-        }
+        };
 
-        function updateLeadStatus(leadId, newStatus) {
+        async function updateLeadStatus(leadId, newStatus) {
             const lead = leads.find(l => l.id === leadId);
             if (lead) {
-                // Add automatic activity log
-                const now = new Date();
-                const dettagli = `Cambiato stato da "${statusConfig[lead.stato].label}" a "${statusConfig[newStatus].label}" - ${formatTime(now)}`;
-                
-                lead.attivita.push({
-                    azione: 'Chiamata effettuata',
-                    stato: newStatus,
-                    timestamp: now.toISOString(),
-                    automatico: true,
-                    dettagli: dettagli
-                });
-                
-                lead.stato = newStatus;
-                lead.ultimaChiamata = now.toISOString();
-                
-                renderPipeline();
-                updateStats();
-                console.log('Lead aggiornato con successo');
+                try {
+                    // Add automatic activity log
+                    const now = new Date();
+                    const dettagli = `Cambiato stato da "${statusConfig[lead.stato].label}" a "${statusConfig[newStatus].label}" - ${formatTime(now)}`;
+                    
+                    const newAttivita = (lead.attivita || []).concat([{
+                        azione: 'Chiamata effettuata',
+                        stato: newStatus,
+                        timestamp: now.toISOString(),
+                        automatico: true,
+                        dettagli: dettagli
+                    }]);
+                    
+                    await updateLeadInFirebase(leadId, {
+                        stato: newStatus,
+                        ultimaChiamata: now.toISOString(),
+                        attivita: newAttivita
+                    });
+                    
+                } catch (error) {
+                    console.error('Error updating lead status:', error);
+                    alert('Errore nell\'aggiornamento del lead. Riprova.');
+                }
             }
         }
 
@@ -1276,7 +1425,7 @@
             return `${date.toLocaleDateString('it-IT')} ${date.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}`;
         }
 
-        function showLeadDetail(leadId) {
+        window.showLeadDetail = function(leadId) {
             const lead = leads.find(l => l.id === leadId);
             if (!lead) return;
 
@@ -1293,7 +1442,7 @@
                 
                 <div class="timeline">
                     <h4>📈 Timeline Attività</h4>
-                    ${lead.attivita.slice().reverse().map(attivita => `
+                    ${(lead.attivita || []).slice().reverse().map(attivita => `
                         <div class="timeline-item" style="border-left-color: ${statusConfig[attivita.stato].color}">
                             <div class="timeline-time">
                                 ${formatTimestamp(attivita.timestamp)}
@@ -1309,11 +1458,11 @@
             
             document.getElementById('modal-lead-content').innerHTML = modalContent;
             document.getElementById('leadModal').style.display = 'block';
-        }
+        };
 
-        function closeModal() {
+        window.closeModal = function() {
             document.getElementById('leadModal').style.display = 'none';
-        }
+        };
 
         // Commercial Assignment Modal Functions
         function showCommercialModal(lead) {
@@ -1322,15 +1471,12 @@
             document.getElementById('commercialModal').style.display = 'block';
         }
 
-        function closeCommercialModal() {
+        window.closeCommercialModal = function() {
             document.getElementById('commercialModal').style.display = 'none';
             pendingLeadForCommercial = null;
-            
-            // Renderizza di nuovo la pipeline per ripristinare il lead nella posizione originale
-            renderPipeline();
-        }
+        };
 
-        function confirmCommercialAssignment() {
+        window.confirmCommercialAssignment = async function() {
             const selectedCommercial = document.getElementById('commercial-select').value;
             
             if (!selectedCommercial) {
@@ -1341,75 +1487,92 @@
             if (pendingLeadForCommercial) {
                 const lead = leads.find(l => l.id === pendingLeadForCommercial.leadId);
                 if (lead) {
-                    // Assegna il commerciale
-                    lead.commerciale = selectedCommercial;
-                    
-                    // Aggiorna lo stato a lead-ok
-                    const now = new Date();
-                    const dettagli = `Lead recuperato con successo e assegnato a ${selectedCommercial} - ${formatTime(now)}`;
-                    
-                    lead.attivita.push({
-                        azione: 'Lead recuperato',
-                        stato: 'lead-ok',
-                        timestamp: now.toISOString(),
-                        automatico: true,
-                        dettagli: dettagli
-                    });
-                    
-                    lead.stato = 'lead-ok';
-                    lead.ultimaChiamata = now.toISOString();
-                    
-                    // Chiudi il modal e aggiorna la pipeline
-                    closeCommercialModal();
-                    renderPipeline();
-                    updateStats();
-                    
-                    // Mostra messaggio di successo
-                    alert(`✅ Lead "${lead.nome} ${lead.cognome}" assegnato con successo a ${selectedCommercial}!`);
-                    
-                    console.log('Lead recuperato e assegnato con successo');
+                    try {
+                        // Aggiorna lo stato a lead-ok
+                        const now = new Date();
+                        const dettagli = `Lead recuperato con successo e assegnato a ${selectedCommercial} - ${formatTime(now)}`;
+                        
+                        const newAttivita = (lead.attivita || []).concat([{
+                            azione: 'Lead recuperato',
+                            stato: 'lead-ok',
+                            timestamp: now.toISOString(),
+                            automatico: true,
+                            dettagli: dettagli
+                        }]);
+                        
+                        await updateLeadInFirebase(pendingLeadForCommercial.leadId, {
+                            commerciale: selectedCommercial,
+                            stato: 'lead-ok',
+                            ultimaChiamata: now.toISOString(),
+                            attivita: newAttivita
+                        });
+                        
+                        // Chiudi il modal
+                        closeCommercialModal();
+                        
+                        // Mostra messaggio di successo
+                        alert(`✅ Lead "${lead.nome} ${lead.cognome}" assegnato con successo a ${selectedCommercial}!`);
+                        
+                    } catch (error) {
+                        console.error('Error assigning commercial:', error);
+                        alert('Errore nell\'assegnazione del commerciale. Riprova.');
+                    }
                 }
             }
-        }
+        };
 
-        function updateLeadNotes(leadId, notes) {
+        window.updateLeadNotes = async function(leadId, notes) {
             const lead = leads.find(l => l.id === leadId);
             if (lead) {
-                lead.note = notes;
-                if (notes.trim()) {
-                    lead.attivita.push({
-                        azione: 'Nota aggiunta',
-                        stato: lead.stato,
-                        timestamp: new Date().toISOString(),
-                        automatico: true,
-                        dettagli: `Nota aggiunta: "${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}"`
-                    });
+                try {
+                    const updates = { note: notes };
+                    
+                    if (notes.trim()) {
+                        const newAttivita = (lead.attivita || []).concat([{
+                            azione: 'Nota aggiunta',
+                            stato: lead.stato,
+                            timestamp: new Date().toISOString(),
+                            automatico: true,
+                            dettagli: `Nota aggiunta: "${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}"`
+                        }]);
+                        
+                        updates.attivita = newAttivita;
+                    }
+                    
+                    await updateLeadInFirebase(leadId, updates);
+                } catch (error) {
+                    console.error('Error updating notes:', error);
                 }
             }
-        }
+        };
 
-        function assignCommercial(leadId, commercial) {
+        window.assignCommercial = async function(leadId, commercial) {
             const lead = leads.find(l => l.id === leadId);
             if (lead) {
-                const oldCommercial = lead.commerciale;
-                lead.commerciale = commercial;
-                
-                if (commercial && commercial !== oldCommercial) {
-                    lead.attivita.push({
-                        azione: 'Commerciale assegnato',
-                        stato: lead.stato,
-                        timestamp: new Date().toISOString(),
-                        automatico: true,
-                        dettagli: `Commerciale assegnato: ${commercial}${oldCommercial ? ` (precedente: ${oldCommercial})` : ''}`
-                    });
+                try {
+                    const oldCommercial = lead.commerciale;
+                    const updates = { commerciale: commercial };
+                    
+                    if (commercial && commercial !== oldCommercial) {
+                        const newAttivita = (lead.attivita || []).concat([{
+                            azione: 'Commerciale assegnato',
+                            stato: lead.stato,
+                            timestamp: new Date().toISOString(),
+                            automatico: true,
+                            dettagli: `Commerciale assegnato: ${commercial}${oldCommercial ? ` (precedente: ${oldCommercial})` : ''}`
+                        }]);
+                        
+                        updates.attivita = newAttivita;
+                    }
+                    
+                    await updateLeadInFirebase(leadId, updates);
+                } catch (error) {
+                    console.error('Error assigning commercial:', error);
                 }
-                
-                renderPipeline();
-                renderLeads();
             }
-        }
+        };
 
-        function filterLeads(filter) {
+        window.filterLeads = function(filter) {
             currentFilter = filter;
             
             // Update active filter button
@@ -1419,44 +1582,44 @@
             event.target.classList.add('active');
             
             renderLeads();
-        }
+        };
 
-        function addNewLead() {
-            const newLead = {
-                id: Date.now(),
-                nome: document.getElementById('nome').value,
-                cognome: document.getElementById('cognome').value,
-                telefono: document.getElementById('telefono').value,
-                email: document.getElementById('email').value,
-                commerciale: '',
-                stato: 'nuovo',
-                note: '',
-                dataCreazione: new Date().toISOString(),
-                ultimaChiamata: null,
-                attivita: [
-                    {
+        window.addNewLead = async function() {
+            try {
+                const newLead = {
+                    nome: document.getElementById('nome').value,
+                    cognome: document.getElementById('cognome').value,
+                    telefono: document.getElementById('telefono').value,
+                    email: document.getElementById('email').value,
+                    commerciale: '',
+                    stato: 'nuovo',
+                    note: '',
+                    ultimaChiamata: null,
+                    attivita: [{
                         azione: 'Creazione lead',
                         stato: 'nuovo',
                         timestamp: new Date().toISOString(),
                         automatico: true,
                         dettagli: 'Lead creato manualmente nel sistema'
-                    }
-                ]
-            };
+                    }]
+                };
 
-            leads.unshift(newLead);
-            document.getElementById('add-lead-form').reset();
-            renderPipeline();
-            renderLeads();
-        }
+                await addLeadToFirebase(newLead);
+                document.getElementById('add-lead-form').reset();
+                
+            } catch (error) {
+                console.error('Error adding lead:', error);
+                alert('Errore nell\'aggiunta del lead. Riprova.');
+            }
+        };
 
-        // File import functions (same as before)
-        function handleFileSelect(event) {
+        // File import functions 
+        window.handleFileSelect = function(event) {
             const file = event.target.files[0];
             if (file) {
                 processFile(file);
             }
-        }
+        };
 
         function processFile(file) {
             const reader = new FileReader();
@@ -1507,7 +1670,6 @@
                     row[header] = values[index] || '';
                 });
 
-                // Mappiamo direttamente con maggiore precisione
                 const mappedRow = {
                     nome: '',
                     cognome: '',
@@ -1544,7 +1706,6 @@
             const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
             return jsonData.map(row => {
-                // Manteniamo le chiavi originali per un mapping più preciso
                 const mappedRow = {
                     nome: '',
                     cognome: '',
@@ -1552,7 +1713,6 @@
                     email: ''
                 };
 
-                // Mappiamo direttamente in base alle chiavi che sappiamo esistere
                 Object.keys(row).forEach(originalKey => {
                     const cleanKey = originalKey.trim().toLowerCase();
                     const value = row[originalKey];
@@ -1570,51 +1730,6 @@
 
                 return mappedRow;
             }).filter(row => row.nome || row.cognome || row.email || row.telefono);
-        }
-
-        function mapColumns(row) {
-            const mapped = {
-                nome: '',
-                cognome: '',
-                telefono: '',
-                email: ''
-            };
-
-            // Prima puliamo tutte le chiavi rimuovendo spazi iniziali e finali
-            const cleanedRow = {};
-            Object.keys(row).forEach(key => {
-                const cleanKey = key.trim().toLowerCase();
-                cleanedRow[cleanKey] = row[key];
-            });
-
-            // Ora mappiamo con le chiavi pulite
-            Object.keys(cleanedRow).forEach(cleanKey => {
-                const value = cleanedRow[cleanKey];
-                
-                // Nome: riconosce nome, name, first
-                if (cleanKey.includes('nome') || cleanKey.includes('name') || cleanKey === 'first') {
-                    mapped.nome = value;
-                }
-                // Cognome: riconosce cognome, surname, last
-                else if (cleanKey.includes('cognome') || cleanKey.includes('surname') || cleanKey.includes('last')) {
-                    mapped.cognome = value;
-                }
-                // Telefono: riconosce telefono, phone, tel, numero
-                else if (cleanKey.includes('telefono') || cleanKey.includes('phone') || cleanKey.includes('tel') || cleanKey.includes('numero')) {
-                    mapped.telefono = value;
-                }
-                // Email: riconosce email, mail
-                else if (cleanKey.includes('email') || cleanKey.includes('mail')) {
-                    mapped.email = value;
-                }
-            });
-
-            // Convertiamo il telefono in stringa se è un numero
-            if (mapped.telefono && typeof mapped.telefono === 'number') {
-                mapped.telefono = mapped.telefono.toString();
-            }
-
-            return mapped;
         }
 
         function showPreview(data) {
@@ -1662,51 +1777,54 @@
             previewContainer.style.display = 'block';
         }
 
-        function confirmImport() {
+        window.confirmImport = async function() {
             if (pendingImportData && pendingImportData.length > 0) {
+                showLoading(true);
                 let importedCount = 0;
-                const importTimestamp = new Date().toISOString();
                 
-                pendingImportData.forEach(row => {
-                    if (row.email && !leads.find(l => l.email === row.email)) {
-                        const newLead = {
-                            id: Date.now() + Math.random(),
-                            nome: row.nome || '',
-                            cognome: row.cognome || '',
-                            telefono: row.telefono || '',
-                            email: row.email,
-                            commerciale: '',
-                            stato: 'nuovo',
-                            note: '',
-                            dataCreazione: importTimestamp,
-                            ultimaChiamata: null,
-                            attivita: [
-                                {
+                try {
+                    for (const row of pendingImportData) {
+                        if (row.email && !leads.find(l => l.email === row.email)) {
+                            const newLead = {
+                                nome: row.nome || '',
+                                cognome: row.cognome || '',
+                                telefono: row.telefono || '',
+                                email: row.email,
+                                commerciale: '',
+                                stato: 'nuovo',
+                                note: '',
+                                ultimaChiamata: null,
+                                attivita: [{
                                     azione: 'Creazione lead',
                                     stato: 'nuovo',
-                                    timestamp: importTimestamp,
+                                    timestamp: new Date().toISOString(),
                                     automatico: true,
                                     dettagli: 'Lead importato da file CSV/Excel'
-                                }
-                            ]
-                        };
-                        leads.unshift(newLead);
-                        importedCount++;
+                                }]
+                            };
+                            
+                            await addLeadToFirebase(newLead);
+                            importedCount++;
+                        }
                     }
-                });
 
-                showMessage(`✅ Importati con successo ${importedCount} nuovi lead!`, 'success');
-                cancelImport();
-                renderPipeline();
-                renderLeads();
+                    showMessage(`✅ Importati con successo ${importedCount} nuovi lead!`, 'success');
+                    cancelImport();
+                    
+                } catch (error) {
+                    console.error('Error importing leads:', error);
+                    showMessage('Errore durante l\'importazione. Riprova.', 'error');
+                } finally {
+                    showLoading(false);
+                }
             }
-        }
+        };
 
-        function cancelImport() {
+        window.cancelImport = function() {
             pendingImportData = null;
             document.getElementById('preview-container').style.display = 'none';
             document.getElementById('file-input').value = '';
-        }
+        };
 
         function showMessage(message, type) {
             const messagesContainer = document.getElementById('import-messages');
@@ -1719,6 +1837,7 @@
             }, 5000);
         }
 
+        // Reports functions
         function renderReports() {
             const reportsContainer = document.getElementById('daily-reports');
             
@@ -1739,7 +1858,7 @@
             
             // Calculate daily call average
             const allActivities = leads.flatMap(lead => 
-                lead.attivita.filter(a => a.azione === 'Chiamata effettuata')
+                (lead.attivita || []).filter(a => a.azione === 'Chiamata effettuata')
             );
             const daysWithCalls = new Set(allActivities.map(a => new Date(a.timestamp).toDateString())).size;
             const avgDailyCalls = daysWithCalls > 0 ? Math.round(allActivities.length / daysWithCalls) : 0;
@@ -1756,11 +1875,11 @@
             }).length;
             
             // Calculate average recovery time
-            const recoveredWithDates = leads.filter(lead => lead.stato === 'lead-ok' && lead.attivita.length > 1);
+            const recoveredWithDates = leads.filter(lead => lead.stato === 'lead-ok' && (lead.attivita || []).length > 1);
             const avgRecoveryDays = recoveredWithDates.length > 0 ? 
                 Math.round(recoveredWithDates.reduce((sum, lead) => {
-                    const created = new Date(lead.dataCreazione);
-                    const recovered = new Date(lead.attivita.find(a => a.stato === 'lead-ok')?.timestamp || lead.dataCreazione);
+                    const created = new Date(lead.dataCreazione?.seconds ? lead.dataCreazione.seconds * 1000 : lead.dataCreazione);
+                    const recovered = new Date((lead.attivita || []).find(a => a.stato === 'lead-ok')?.timestamp || lead.dataCreazione);
                     return sum + (recovered - created) / (1000 * 60 * 60 * 24);
                 }, 0) / recoveredWithDates.length) : 0;
             document.getElementById('avg-recovery-time').textContent = avgRecoveryDays + ' giorni';
@@ -1820,10 +1939,10 @@
                 document.getElementById('best-day').textContent = `${bestDayFormatted} (${dailyStats[bestDay]} chiamate)`;
             }
             
-            // Daily activity report (existing functionality)
+            // Daily activity report
             const activityByDate = {};
             leads.flatMap(lead => 
-                lead.attivita.map(activity => ({
+                (lead.attivita || []).map(activity => ({
                     ...activity,
                     leadName: `${lead.nome} ${lead.cognome}`,
                     leadEmail: lead.email
@@ -1910,7 +2029,7 @@
             commercialGrid.innerHTML = gridHTML;
         }
 
-        function exportForCommercial(commerciale) {
+        window.exportForCommercial = function(commerciale) {
             const leadOkForCommercial = leads.filter(lead => 
                 lead.commerciale === commerciale && lead.stato === 'lead-ok'
             );
@@ -1923,9 +2042,9 @@
             const csv = `LEAD OK PER ${commerciale.toUpperCase()} - ${new Date().toLocaleDateString()}\n\n` +
                        `Nome,Cognome,Telefono,Email,Note,Data Recupero,Ora Recupero\n` + 
                        leadOkForCommercial.map(lead => {
-                           const dataRecupero = lead.attivita.find(a => a.stato === 'lead-ok')?.timestamp || '';
+                           const dataRecupero = (lead.attivita || []).find(a => a.stato === 'lead-ok')?.timestamp || '';
                            const dateObj = dataRecupero ? new Date(dataRecupero) : new Date();
-                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},"${lead.note}",${dateObj.toLocaleDateString()},${dateObj.toLocaleTimeString()}`;
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},"${lead.note || ''}",${dateObj.toLocaleDateString()},${dateObj.toLocaleTimeString()}`;
                        }).join('\n') + 
                        `\n\n📊 RIEPILOGO:\n` +
                        `Totale Lead Ok: ${leadOkForCommercial.length}\n` +
@@ -1940,9 +2059,9 @@
             
             // Mostra messaggio di successo con istruzioni
             alert(`✅ Export completato per ${commerciale}!\n\n📊 ${leadOkForCommercial.length} Lead Ok esportati\n\n💡 Il file è pronto per essere inviato via WhatsApp o Email al commerciale.`);
-        }
+        };
 
-        function exportAllForCommercial(commerciale) {
+        window.exportAllForCommercial = function(commerciale) {
             const allLeadsForCommercial = leads.filter(lead => lead.commerciale === commerciale);
             
             if (allLeadsForCommercial.length === 0) {
@@ -1953,9 +2072,12 @@
             const csv = `TUTTI I LEAD PER ${commerciale.toUpperCase()} - ${new Date().toLocaleDateString()}\n\n` +
                        `Nome,Cognome,Telefono,Email,Stato,Note,Data Assegnazione,Ultima Attività\n` + 
                        allLeadsForCommercial.map(lead => {
-                           const ultimaAttivita = lead.attivita.length > 0 ? 
-                               new Date(lead.attivita[lead.attivita.length - 1].timestamp).toLocaleDateString() : 'N/A';
-                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${statusConfig[lead.stato].label},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()},${ultimaAttivita}`;
+                           const ultimaAttivita = (lead.attivita || []).length > 0 ? 
+                               new Date((lead.attivita || [])[lead.attivita.length - 1].timestamp).toLocaleDateString() : 'N/A';
+                           const dataCreazione = lead.dataCreazione?.seconds ? 
+                               new Date(lead.dataCreazione.seconds * 1000).toLocaleDateString() : 
+                               new Date(lead.dataCreazione).toLocaleDateString();
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${statusConfig[lead.stato].label},"${lead.note || ''}",${dataCreazione},${ultimaAttivita}`;
                        }).join('\n') + 
                        `\n\n📊 RIEPILOGO PER ${commerciale}:\n` +
                        `Totale Lead: ${allLeadsForCommercial.length}\n` +
@@ -1967,29 +2089,35 @@
             downloadCSV(csv, `tutti-lead-${commerciale.replace(' ', '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`);
             
             alert(`✅ Export completo per ${commerciale}!\n\n📊 ${allLeadsForCommercial.length} lead totali esportati`);
-        }
+        };
 
-        function exportLeadOk() {
+        // Export functions
+        window.exportLeadOk = function() {
             const leadOk = leads.filter(lead => lead.stato === 'lead-ok');
             const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Note,Data Recupero\n' + 
                        leadOk.map(lead => {
-                           const dataRecupero = lead.attivita.find(a => a.stato === 'lead-ok')?.timestamp || '';
-                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale},"${lead.note}",${new Date(dataRecupero).toLocaleDateString()}`;
+                           const dataRecupero = (lead.attivita || []).find(a => a.stato === 'lead-ok')?.timestamp || '';
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale || ''},"${lead.note || ''}",${new Date(dataRecupero).toLocaleDateString()}`;
                        }).join('\n');
             
             downloadCSV(csv, `lead-ok-${new Date().toISOString().split('T')[0]}.csv`);
-        }
+        };
 
-        function exportAllLeads() {
+        window.exportAllLeads = function() {
             const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Stato,Note,Data Creazione\n' + 
-                       leads.map(lead => `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale},${lead.stato},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()}`).join('\n');
+                       leads.map(lead => {
+                           const dataCreazione = lead.dataCreazione?.seconds ? 
+                               new Date(lead.dataCreazione.seconds * 1000).toLocaleDateString() : 
+                               new Date(lead.dataCreazione).toLocaleDateString();
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale || ''},${lead.stato},"${lead.note || ''}",${dataCreazione}`;
+                       }).join('\n');
             
             downloadCSV(csv, `tutti-lead-${new Date().toISOString().split('T')[0]}.csv`);
-        }
+        };
 
-        function exportActivityLog() {
+        window.exportActivityLog = function() {
             const allActivities = leads.flatMap(lead => 
-                lead.attivita.map(activity => ({
+                (lead.attivita || []).map(activity => ({
                     ...activity,
                     leadName: `${lead.nome} ${lead.cognome}`,
                     leadEmail: lead.email
@@ -2003,15 +2131,15 @@
                        }).join('\n');
             
             downloadCSV(csv, `log-attivita-${new Date().toISOString().split('T')[0]}.csv`);
-        }
+        };
 
-        function exportWeeklyReport() {
+        window.exportWeeklyReport = function() {
             const totalLeads = leads.length;
             const recoveredLeads = leads.filter(lead => lead.stato === 'lead-ok').length;
             const recoveryRate = totalLeads > 0 ? Math.round((recoveredLeads / totalLeads) * 100) : 0;
             
             const allActivities = leads.flatMap(lead => 
-                lead.attivita.filter(a => a.azione === 'Chiamata effettuata')
+                (lead.attivita || []).filter(a => a.azione === 'Chiamata effettuata')
             );
             
             const weeklyStats = Object.keys(statusConfig).map(status => {
@@ -2028,166 +2156,18 @@
                        `Chiamate Totali,${allActivities.length}\n\n` +
                        `DISTRIBUZIONE PIPELINE\n` +
                        `Stato,Quantità,Percentuale\n` +
-                       weeklyStats + '\n\n' +
-                       `ATTIVITA GIORNALIERE\n` +
-                       `Data,Chiamate,Lead Ok,Lead Chiusi\n` +
-                       Object.keys(getActivityByDate()).map(date => {
-                           const activities = getActivityByDate()[date];
-                           const calls = activities.filter(a => a.azione === 'Chiamata effettuata');
-                           const leadOk = calls.filter(c => c.stato === 'lead-ok').length;
-                           const leadClosed = calls.filter(c => c.stato === 'non-interessato' || c.stato === 'mai-reperibile').length;
-                           return `${new Date(date).toLocaleDateString()},${calls.length},${leadOk},${leadClosed}`;
-                       }).join('\n');
+                       weeklyStats;
             
             downloadCSV(csv, `report-settimanale-romina-${new Date().toISOString().split('T')[0]}.csv`);
-        }
+        };
 
-        function getActivityByDate() {
-            const activityByDate = {};
-            leads.flatMap(lead => 
-                lead.attivita.map(activity => ({
-                    ...activity,
-                    leadName: `${lead.nome} ${lead.cognome}`,
-                    leadEmail: lead.email
-                }))
-            ).forEach(activity => {
-                const date = new Date(activity.timestamp).toDateString();
-                if (!activityByDate[date]) {
-                    activityByDate[date] = [];
-                }
-                activityByDate[date].push(activity);
-            });
-            return activityByDate;
-        }
-
-        // Monthly Management Functions
-        function showArchiveOptions() {
-            const leadOk = leads.filter(lead => lead.stato === 'lead-ok').length;
-            const nonInteressato = leads.filter(lead => lead.stato === 'non-interessato').length;
-            const maiReperibile = leads.filter(lead => lead.stato === 'mai-reperibile').length;
-            const total = leadOk + nonInteressato + maiReperibile;
-
-            document.getElementById('archive-summary').innerHTML = `
-                <h4>📊 Summary Lead da Archiviare:</h4>
-                <p>✅ Lead Ok: <strong>${leadOk}</strong> (recuperati con successo)</p>
-                <p>💔 Non interessati: <strong>${nonInteressato}</strong></p>
-                <p>❌ Mai reperibili: <strong>${maiReperibile}</strong></p>
-                <hr style="margin: 10px 0;">
-                <p><strong>Totale da archiviare: ${total} lead</strong></p>
-                <p style="color: #27ae60;">Resteranno attivi: <strong>${leads.length - total} lead</strong></p>
-            `;
-
-            document.getElementById('archiveModal').style.display = 'block';
-        }
-
-        function closeArchiveModal() {
-            document.getElementById('archiveModal').style.display = 'none';
-        }
-
-        function executeArchive() {
-            const archiveLeadOk = document.getElementById('archive-lead-ok').checked;
-            const archiveNonInteressato = document.getElementById('archive-non-interessato').checked;
-            const archiveMaiReperibile = document.getElementById('archive-mai-reperibile').checked;
-            const exportFirst = document.getElementById('export-before-archive').checked;
-
-            let toArchive = [];
-
-            if (archiveLeadOk) {
-                toArchive = toArchive.concat(leads.filter(lead => lead.stato === 'lead-ok'));
-            }
-            if (archiveNonInteressato) {
-                toArchive = toArchive.concat(leads.filter(lead => lead.stato === 'non-interessato'));
-            }
-            if (archiveMaiReperibile) {
-                toArchive = toArchive.concat(leads.filter(lead => lead.stato === 'mai-reperibile'));
-            }
-
-            if (exportFirst && toArchive.length > 0) {
-                // Export archived leads
-                const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Stato,Note,Data Creazione,Data Archiviazione\n' + 
-                           toArchive.map(lead => 
-                               `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale},${lead.stato},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()},${new Date().toLocaleDateString()}`
-                           ).join('\n');
-                
-                downloadCSV(csv, `lead-archiviati-${new Date().toISOString().split('T')[0]}.csv`);
-            }
-
-            // In real Firebase implementation, move to 'archived_leads' collection
-            // await addDoc(collection(db, 'archived_leads'), {...lead, dataArchiviazione: new Date()});
-            // await deleteDoc(doc(db, 'leads', lead.id));
-
-            // For demo: remove from current leads array
-            const archivedIds = toArchive.map(lead => lead.id);
-            leads = leads.filter(lead => !archivedIds.includes(lead.id));
-
-            alert(`✅ Archiviati con successo ${toArchive.length} lead!`);
-            closeArchiveModal();
-            renderPipeline();
-            renderLeads();
-        }
-
-        function showCleanupOptions() {
-            document.getElementById('cleanupModal').style.display = 'block';
-        }
-
-        function closeCleanupModal() {
-            document.getElementById('cleanupModal').style.display = 'none';
-        }
-
-        function executeCleanup() {
-            const cleanupAllLeads = document.getElementById('cleanup-all-leads').checked;
-            const cleanupActivityLog = document.getElementById('cleanup-activity-log').checked;
-            const exportFirst = document.getElementById('export-before-cleanup').checked;
-
-            if (!cleanupAllLeads && !cleanupActivityLog) {
-                alert('⚠️ Seleziona almeno un\'opzione di pulizia.');
-                return;
-            }
-
-            const confirmMessage = `⚠️ ATTENZIONE!\n\nStai per eliminare:\n${cleanupAllLeads ? '- TUTTI i lead\n' : ''}${cleanupActivityLog ? '- Tutti i log di attività\n' : ''}\nQuesta operazione è IRREVERSIBILE!\n\nContinuare?`;
-            
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-
-            if (exportFirst) {
-                // Export everything before cleanup
-                exportAllLeads();
-                exportActivityLog();
-                exportMonthlyReport();
-            }
-
-            if (cleanupAllLeads) {
-                // In real Firebase: delete all documents in 'leads' collection
-                leads = [];
-            }
-
-            if (cleanupActivityLog) {
-                // In real Firebase: delete all documents in activity logs
-                leads.forEach(lead => {
-                    lead.attivita = [{
-                        azione: 'Sistema ripulito',
-                        stato: lead.stato,
-                        timestamp: new Date().toISOString(),
-                        automatico: true,
-                        dettagli: 'Log precedenti eliminati durante pulizia mensile'
-                    }];
-                });
-            }
-
-            alert('🧹 Pulizia completata! Sistema pronto per nuovi lead.');
-            closeCleanupModal();
-            renderPipeline();
-            renderLeads();
-        }
-
-        function exportMonthlyReport() {
+        window.exportMonthlyReport = function() {
             const totalLeads = leads.length;
             const recoveredLeads = leads.filter(lead => lead.stato === 'lead-ok').length;
             const recoveryRate = totalLeads > 0 ? Math.round((recoveredLeads / totalLeads) * 100) : 0;
             
             const allActivities = leads.flatMap(lead => 
-                lead.attivita.filter(a => a.azione === 'Chiamata effettuata')
+                (lead.attivita || []).filter(a => a.azione === 'Chiamata effettuata')
             );
 
             const monthlyStats = Object.keys(statusConfig).map(status => {
@@ -2196,43 +2176,16 @@
                 return `${statusConfig[status].label},${count},${percentage}%`;
             }).join('\n');
 
-            // Calculate daily performance
-            const dailyStats = {};
-            allActivities.forEach(activity => {
-                const date = new Date(activity.timestamp).toDateString();
-                if (!dailyStats[date]) dailyStats[date] = { calls: 0, leadOk: 0, closed: 0 };
-                dailyStats[date].calls++;
-                if (activity.stato === 'lead-ok') dailyStats[date].leadOk++;
-                if (activity.stato === 'non-interessato' || activity.stato === 'mai-reperibile') dailyStats[date].closed++;
-            });
-
-            const dailyPerformance = Object.keys(dailyStats)
-                .sort((a, b) => new Date(a) - new Date(b))
-                .map(date => {
-                    const stats = dailyStats[date];
-                    return `${new Date(date).toLocaleDateString()},${stats.calls},${stats.leadOk},${stats.closed}`;
-                }).join('\n');
-
             const csv = `REPORT MENSILE COMPLETO ROMINA - ${new Date().toLocaleDateString()}\n\n` +
-                       `PERIODO,${Object.keys(dailyStats).length > 0 ? 
-                           new Date(Math.min(...Object.keys(dailyStats).map(d => new Date(d)))).toLocaleDateString() + 
-                           ' - ' + 
-                           new Date(Math.max(...Object.keys(dailyStats).map(d => new Date(d)))).toLocaleDateString() 
-                           : 'N/A'}\n\n` +
                        `METRICHE GENERALI\n` +
                        `Lead Totali Processati,${totalLeads}\n` +
                        `Lead Recuperati con Successo,${recoveredLeads}\n` +
                        `Tasso di Recupero,${recoveryRate}%\n` +
                        `Chiamate Totali Effettuate,${allActivities.length}\n` +
-                       `Media Chiamate per Lead,${totalLeads > 0 ? (allActivities.length / totalLeads).toFixed(1) : 0}\n` +
-                       `Giorni di Lavoro,${Object.keys(dailyStats).length}\n` +
-                       `Media Chiamate per Giorno,${Object.keys(dailyStats).length > 0 ? (allActivities.length / Object.keys(dailyStats).length).toFixed(1) : 0}\n\n` +
+                       `Media Chiamate per Lead,${totalLeads > 0 ? (allActivities.length / totalLeads).toFixed(1) : 0}\n\n` +
                        `DISTRIBUZIONE FINALE PIPELINE\n` +
                        `Stato,Quantità,Percentuale\n` +
                        monthlyStats + '\n\n' +
-                       `PERFORMANCE GIORNALIERA\n` +
-                       `Data,Chiamate,Lead Ok,Lead Chiusi\n` +
-                       dailyPerformance + '\n\n' +
                        `COMMERCIALI PERFORMANCE\n` +
                        `Commerciale,Lead Assegnati,Lead Ok Ricevuti\n` +
                        commerciali.map(comm => {
@@ -2242,7 +2195,7 @@
                        }).join('\n');
             
             downloadCSV(csv, `report-mensile-completo-${new Date().toISOString().split('T')[0]}.csv`);
-        }
+        };
 
         function downloadCSV(csv, filename) {
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -2253,6 +2206,23 @@
             a.click();
             window.URL.revokeObjectURL(url);
         }
+
+        // Archive and cleanup functions - placeholders
+        window.showArchiveOptions = function() {
+            alert('🚧 Funzione Archiviazione in sviluppo');
+        };
+
+        window.showCleanupOptions = function() {
+            alert('🚧 Funzione Pulizia in sviluppo');
+        };
+
+        window.closeArchiveModal = function() {
+            document.getElementById('archiveModal').style.display = 'none';
+        };
+
+        window.closeCleanupModal = function() {
+            document.getElementById('cleanupModal').style.display = 'none';
+        };
 
         // Event listeners
         document.getElementById('add-lead-form').addEventListener('submit', function(e) {
@@ -2283,7 +2253,7 @@
             if (event.target == cleanupModal) {
                 cleanupModal.style.display = "none";
             }
-        }
+        };
 
         // Drag and drop for file upload
         const importArea = document.getElementById('import-area');
@@ -2308,9 +2278,8 @@
             }
         });
 
-        // Initialize
-        renderPipeline();
-        updateStats();
+        // Initialize app when DOM is loaded
+        initApp();
     </script>
 </body>
 </html>
