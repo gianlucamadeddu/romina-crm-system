@@ -73,46 +73,131 @@
             text-align: center;
         }
 
-        /* Pipeline Styles */
+        /* Pipeline Compatta Styles */
         .pipeline-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 15px;
             margin-bottom: 30px;
+            overflow-x: auto;
+            padding-bottom: 10px;
         }
 
         .pipeline-column {
             background: white;
             border-radius: 12px;
-            padding: 15px;
+            padding: 10px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            min-height: 500px;
+            min-width: 200px;
+            max-width: 220px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
         }
 
         .column-header {
             text-align: center;
-            padding: 15px;
+            padding: 12px 8px;
             border-radius: 8px;
             font-weight: bold;
             color: white;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             position: relative;
+            font-size: 0.9em;
+            flex-shrink: 0;
         }
 
-        .column-header .count {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: rgba(255,255,255,0.9);
-            color: #333;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8em;
+        .column-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 5px;
+        }
+
+        .column-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .column-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .column-content::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .column-content::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .pipeline-lead {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+            cursor: grab;
+            transition: all 0.3s ease;
+            user-select: none;
+            font-size: 0.85em;
+        }
+
+        .pipeline-lead:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+
+        .pipeline-lead:active {
+            cursor: grabbing;
+        }
+
+        .pipeline-lead.dragging {
+            opacity: 0.7;
+            transform: rotate(3deg) scale(1.02);
+            cursor: grabbing;
+            z-index: 1000;
+        }
+
+        .pipeline-column.drag-over {
+            background: #e3f2fd;
+            border: 2px dashed #3498db;
+            transform: scale(1.01);
+        }
+
+        .lead-name {
             font-weight: bold;
+            font-size: 0.95em;
+            color: #2c3e50;
+            margin-bottom: 3px;
+        }
+
+        .lead-email {
+            font-size: 0.75em;
+            color: #666;
+            margin-bottom: 2px;
+            word-break: break-all;
+        }
+
+        .lead-commercial {
+            font-size: 0.75em;
+            color: #f39c12;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .lead-notes {
+            width: 100%;
+            margin-top: 5px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.75em;
+            resize: none;
+            min-height: 40px;
+            max-height: 60px;
         }
 
         .nuovo .column-header { background: #3498db; }
@@ -123,31 +208,30 @@
         .non-interessato .column-header { background: #e74c3c; }
         .lead-ok .column-header { background: #27ae60; }
 
-        .pipeline-lead {
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
-            cursor: grab;
-            transition: all 0.3s ease;
+        .column-header .count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7em;
+            font-weight: bold;
         }
 
-        .pipeline-lead:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border-color: #3498db;
-        }
-
-        .pipeline-lead.dragging {
-            opacity: 0.7;
-            transform: rotate(5deg);
-            cursor: grabbing;
-        }
-
-        .pipeline-column.drag-over {
-            background: #e3f2fd;
-            border: 2px dashed #3498db;
+        .auto-log {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 3px;
+            margin-top: 5px;
+            font-size: 0.65em;
+            color: #856404;
         }
 
         .lead-name {
@@ -438,9 +522,26 @@
             border: 1px solid #f5c6cb;
         }
 
+        .commercial-export-btn {
+            transition: all 0.3s ease;
+        }
+
+        .commercial-export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
         @media (max-width: 768px) {
             .pipeline-container {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(7, 180px);
+                overflow-x: auto;
+                padding: 0 10px;
+            }
+            
+            .pipeline-column {
+                min-width: 180px;
+                max-width: 180px;
+                height: 500px;
             }
             
             .main-content {
@@ -526,7 +627,7 @@
         <div id="import-tab" class="tab-content">
             <div class="report-section">
                 <h2>📤 Import Massivo Lead</h2>
-                <p style="margin-bottom: 20px;">Carica i tuoi lead da file CSV o Excel. Il sistema riconoscerà automaticamente le colonne: Nome, Cognome, Email.</p>
+                <p style="margin-bottom: 20px;">Carica i tuoi lead da file CSV o Excel. Il sistema riconoscerà automaticamente le colonne: Nome, Cognome, Telefono, Email.</p>
                 
                 <div id="import-messages"></div>
 
@@ -535,7 +636,7 @@
                     <h3>📁 Trascina qui il tuo file o clicca per selezionare</h3>
                     <p>Supportati: CSV, XLSX, XLS</p>
                     <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                        Formato atteso: Nome | Cognome | Email<br>
+                        Formato atteso: Nome | Cognome | Telefono | Email<br>
                         (le colonne verranno riconosciute automaticamente)
                     </p>
                     <input type="file" id="file-input" class="file-input" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
@@ -558,6 +659,10 @@
                         <div class="form-group">
                             <label>Cognome</label>
                             <input type="text" id="cognome" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Telefono</label>
+                            <input type="tel" id="telefono" required>
                         </div>
                         <div class="form-group">
                             <label>Email</label>
@@ -591,7 +696,7 @@
                     </div>
                     <div style="background: linear-gradient(45deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 12px; text-align: center;">
                         <div style="font-size: 2.5em; font-weight: bold; margin-bottom: 5px;" id="active-leads">0</div>
-                        <div style="font-size: 0.9em;">🔄 Lead Attivi</div>
+                        <div style="font-size: 0.9em;">🔥 Lead Attivi</div>
                     </div>
                 </div>
 
@@ -639,7 +744,7 @@
 
                     <!-- Column 2: Pipeline Status -->
                     <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
-                        <h3 style="color: #2c3e50; margin-bottom: 15px; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">🔄 Stato Pipeline</h3>
+                        <h3 style="color: #2c3e50; margin-bottom: 15px; border-bottom: 2px solid #e74c3c; padding-bottom: 10px;">🔥 Stato Pipeline</h3>
                         
                         <div id="pipeline-stats">
                             <!-- Will be populated by JavaScript -->
@@ -726,6 +831,16 @@
                     </div>
                 </div>
 
+                <!-- Export per Commerciale -->
+                <div style="background: linear-gradient(45deg, #27ae60, #2ecc71); border-radius: 12px; padding: 20px; margin-bottom: 30px; color: white;">
+                    <h3 style="margin-bottom: 15px; color: white;">🎯 Export Lead per Commerciale</h3>
+                    <p style="margin-bottom: 20px; color: rgba(255,255,255,0.9);">Esporta i lead assegnati a ogni commerciale in formato CSV pronto per WhatsApp/Email</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;" id="commercial-export-grid">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
                 <!-- Export Actions -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     <button class="btn-success" onclick="exportLeadOk()">📤 Esporta Lead Ok</button>
@@ -768,6 +883,43 @@
             </div>
             <div id="modal-lead-content">
                 <!-- Lead details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Commercial Assignment Modal -->
+    <div id="commercialModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>🎯 Assegna Lead Ok</h2>
+                <span class="close" onclick="closeCommercialModal()">&times;</span>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <p><strong>Lead recuperato con successo!</strong></p>
+                <p id="commercial-lead-name" style="color: #27ae60; font-weight: bold; margin: 10px 0;"></p>
+                <p>Scegli il commerciale a cui assegnare questo lead:</p>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">👤 Commerciale:</label>
+                <select id="commercial-select" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 14px;">
+                    <option value="">Seleziona commerciale</option>
+                    <option value="Alessandra Deidda">Alessandra Deidda</option>
+                    <option value="Alessandro Poma">Alessandro Poma</option>
+                    <option value="Pamela Palmas">Pamela Palmas</option>
+                    <option value="Congiu Barbara">Congiu Barbara</option>
+                    <option value="Stefano Serra">Stefano Serra</option>
+                    <option value="Valerio Pesapane">Valerio Pesapane</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" onclick="confirmCommercialAssignment()" style="background: #27ae60;">
+                    ✅ Assegna Lead
+                </button>
+                <button class="btn-primary" onclick="closeCommercialModal()" style="background: #95a5a6;">
+                    ❌ Annulla
+                </button>
             </div>
         </div>
     </div>
@@ -873,6 +1025,7 @@
 
         let currentFilter = 'tutti';
         let pendingImportData = null;
+        let pendingLeadForCommercial = null; // Lead in attesa di assegnazione commerciale
 
         // Status configurations
         const statusConfig = {
@@ -886,12 +1039,12 @@
         };
 
         const commerciali = [
-            "Luca Bianchi",
-            "Maria Rossi", 
-            "Giuseppe Verde",
-            "Anna Neri",
-            "Paolo Romano",
-            "Silvia Blu"
+            "Alessandra Deidda",
+            "Alessandro Poma",
+            "Pamela Palmas", 
+            "Congiu Barbara",
+            "Stefano Serra",
+            "Valerio Pesapane"
         ];
 
         function showTab(tabName) {
@@ -981,6 +1134,7 @@
                     </div>
                     <div style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
                         📧 ${lead.email}<br>
+                        📞 ${lead.telefono || 'N/D'}<br>
                         ${lead.commerciale ? `👤 Commerciale: ${lead.commerciale}` : '👤 <em>Commerciale non assegnato</em>'}
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
@@ -1020,27 +1174,78 @@
         // Drag and drop functions
         function allowDrop(ev) {
             ev.preventDefault();
-            ev.currentTarget.classList.add('drag-over');
+            if (ev.currentTarget && ev.currentTarget.classList) {
+                ev.currentTarget.classList.add('drag-over');
+            }
         }
 
         function dragLeave(ev) {
-            ev.currentTarget.classList.remove('drag-over');
+            if (ev.currentTarget && ev.currentTarget.classList) {
+                ev.currentTarget.classList.remove('drag-over');
+            }
         }
 
         function drag(ev) {
-            ev.dataTransfer.setData("text", ev.target.getAttribute('data-lead-id'));
-            ev.target.classList.add('dragging');
+            console.log('Drag iniziato');
+            if (ev.target && ev.target.getAttribute) {
+                const leadId = ev.target.getAttribute('data-lead-id');
+                console.log('Lead ID:', leadId);
+                if (leadId && ev.dataTransfer) {
+                    ev.dataTransfer.setData("text", leadId);
+                    ev.target.classList.add('dragging');
+                }
+            }
         }
 
         function drop(ev) {
+            console.log('Drop eseguito');
             ev.preventDefault();
-            ev.currentTarget.classList.remove('drag-over');
+            if (ev.currentTarget && ev.currentTarget.classList) {
+                ev.currentTarget.classList.remove('drag-over');
+            }
             
-            const leadId = parseInt(ev.dataTransfer.getData("text"));
-            const newStatus = ev.currentTarget.getAttribute('data-status');
+            if (ev.dataTransfer) {
+                const leadIdString = ev.dataTransfer.getData("text");
+                const leadId = parseFloat(leadIdString);
+                const newStatus = ev.currentTarget.getAttribute('data-status');
+                console.log('Lead ID drop:', leadId, 'Nuovo status:', newStatus);
+                const lead = leads.find(l => l.id === leadId);
+                
+                if (lead && lead.stato !== newStatus && newStatus) {
+                    console.log('Aggiorno lead da', lead.stato, 'a', newStatus);
+                    
+                    // Se il nuovo stato è "lead-ok", apri il modal per assegnare il commerciale
+                    if (newStatus === 'lead-ok') {
+                        pendingLeadForCommercial = { leadId: leadId, oldStatus: lead.stato, newStatus: newStatus };
+                        showCommercialModal(lead);
+                        
+                        // Remove dragging class
+                        document.querySelectorAll('.pipeline-lead').forEach(el => {
+                            if (el.classList) {
+                                el.classList.remove('dragging');
+                            }
+                        });
+                        return; // Esci dalla funzione, l'assegnazione avverrà nel modal
+                    }
+                    
+                    // Per tutti gli altri stati, procedi normalmente
+                    updateLeadStatus(leadId, newStatus);
+                } else {
+                    console.log('Nessun aggiornamento necessario o errore. Lead trovato:', !!lead, 'Stati diversi:', lead?.stato !== newStatus);
+                }
+            }
+            
+            // Remove dragging class from all elements
+            document.querySelectorAll('.pipeline-lead').forEach(el => {
+                if (el.classList) {
+                    el.classList.remove('dragging');
+                }
+            });
+        }
+
+        function updateLeadStatus(leadId, newStatus) {
             const lead = leads.find(l => l.id === leadId);
-            
-            if (lead && lead.stato !== newStatus) {
+            if (lead) {
                 // Add automatic activity log
                 const now = new Date();
                 const dettagli = `Cambiato stato da "${statusConfig[lead.stato].label}" a "${statusConfig[newStatus].label}" - ${formatTime(now)}`;
@@ -1057,21 +1262,18 @@
                 lead.ultimaChiamata = now.toISOString();
                 
                 renderPipeline();
+                updateStats();
+                console.log('Lead aggiornato con successo');
             }
-            
-            // Remove dragging class from all elements
-            document.querySelectorAll('.pipeline-lead').forEach(el => {
-                el.classList.remove('dragging');
-            });
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
         }
 
         function formatTimestamp(timestamp) {
             const date = new Date(timestamp);
             return `${date.toLocaleDateString('it-IT')} ${date.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}`;
-        }
-
-        function formatTime(date) {
-            return date.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
         }
 
         function showLeadDetail(leadId) {
@@ -1083,6 +1285,7 @@
             const modalContent = `
                 <div style="margin-bottom: 20px;">
                     <p><strong>📧 Email:</strong> ${lead.email}</p>
+                    <p><strong>📞 Telefono:</strong> ${lead.telefono || 'Non disponibile'}</p>
                     <p><strong>👤 Commerciale:</strong> ${lead.commerciale || 'Non assegnato'}</p>
                     <p><strong>📊 Stato attuale:</strong> <span style="background: ${statusConfig[lead.stato].color}; color: white; padding: 4px 8px; border-radius: 4px;">${statusConfig[lead.stato].label}</span></p>
                     <p><strong>📝 Note:</strong> ${lead.note || 'Nessuna nota'}</p>
@@ -1110,6 +1313,63 @@
 
         function closeModal() {
             document.getElementById('leadModal').style.display = 'none';
+        }
+
+        // Commercial Assignment Modal Functions
+        function showCommercialModal(lead) {
+            document.getElementById('commercial-lead-name').textContent = `${lead.nome} ${lead.cognome} - ${lead.email}`;
+            document.getElementById('commercial-select').value = lead.commerciale || '';
+            document.getElementById('commercialModal').style.display = 'block';
+        }
+
+        function closeCommercialModal() {
+            document.getElementById('commercialModal').style.display = 'none';
+            pendingLeadForCommercial = null;
+            
+            // Renderizza di nuovo la pipeline per ripristinare il lead nella posizione originale
+            renderPipeline();
+        }
+
+        function confirmCommercialAssignment() {
+            const selectedCommercial = document.getElementById('commercial-select').value;
+            
+            if (!selectedCommercial) {
+                alert('⚠️ Seleziona un commerciale prima di procedere!');
+                return;
+            }
+
+            if (pendingLeadForCommercial) {
+                const lead = leads.find(l => l.id === pendingLeadForCommercial.leadId);
+                if (lead) {
+                    // Assegna il commerciale
+                    lead.commerciale = selectedCommercial;
+                    
+                    // Aggiorna lo stato a lead-ok
+                    const now = new Date();
+                    const dettagli = `Lead recuperato con successo e assegnato a ${selectedCommercial} - ${formatTime(now)}`;
+                    
+                    lead.attivita.push({
+                        azione: 'Lead recuperato',
+                        stato: 'lead-ok',
+                        timestamp: now.toISOString(),
+                        automatico: true,
+                        dettagli: dettagli
+                    });
+                    
+                    lead.stato = 'lead-ok';
+                    lead.ultimaChiamata = now.toISOString();
+                    
+                    // Chiudi il modal e aggiorna la pipeline
+                    closeCommercialModal();
+                    renderPipeline();
+                    updateStats();
+                    
+                    // Mostra messaggio di successo
+                    alert(`✅ Lead "${lead.nome} ${lead.cognome}" assegnato con successo a ${selectedCommercial}!`);
+                    
+                    console.log('Lead recuperato e assegnato con successo');
+                }
+            }
         }
 
         function updateLeadNotes(leadId, notes) {
@@ -1166,6 +1426,7 @@
                 id: Date.now(),
                 nome: document.getElementById('nome').value,
                 cognome: document.getElementById('cognome').value,
+                telefono: document.getElementById('telefono').value,
                 email: document.getElementById('email').value,
                 commerciale: '',
                 stato: 'nuovo',
@@ -1246,8 +1507,30 @@
                     row[header] = values[index] || '';
                 });
 
-                const mappedRow = mapColumns(row);
-                if (mappedRow.nome || mappedRow.cognome || mappedRow.email) {
+                // Mappiamo direttamente con maggiore precisione
+                const mappedRow = {
+                    nome: '',
+                    cognome: '',
+                    telefono: '',
+                    email: ''
+                };
+
+                Object.keys(row).forEach(key => {
+                    const cleanKey = key.toLowerCase().trim();
+                    const value = row[key];
+                    
+                    if (cleanKey === 'nome' || cleanKey === 'name' || cleanKey === 'first') {
+                        mappedRow.nome = value;
+                    } else if (cleanKey === 'cognome' || cleanKey === 'surname' || cleanKey === 'last') {
+                        mappedRow.cognome = value;
+                    } else if (cleanKey === 'telefono' || cleanKey === 'phone' || cleanKey === 'tel') {
+                        mappedRow.telefono = value;
+                    } else if (cleanKey === 'email' || cleanKey === 'mail') {
+                        mappedRow.email = value;
+                    }
+                });
+
+                if (mappedRow.nome || mappedRow.cognome || mappedRow.email || mappedRow.telefono) {
                     data.push(mappedRow);
                 }
             }
@@ -1261,31 +1544,75 @@
             const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
             return jsonData.map(row => {
-                const mappedRow = {};
-                Object.keys(row).forEach(key => {
-                    mappedRow[key.toLowerCase().trim()] = row[key];
+                // Manteniamo le chiavi originali per un mapping più preciso
+                const mappedRow = {
+                    nome: '',
+                    cognome: '',
+                    telefono: '',
+                    email: ''
+                };
+
+                // Mappiamo direttamente in base alle chiavi che sappiamo esistere
+                Object.keys(row).forEach(originalKey => {
+                    const cleanKey = originalKey.trim().toLowerCase();
+                    const value = row[originalKey];
+                    
+                    if (cleanKey === 'nome') {
+                        mappedRow.nome = value;
+                    } else if (cleanKey === 'cognome') {
+                        mappedRow.cognome = value;
+                    } else if (cleanKey === 'telefono') {
+                        mappedRow.telefono = value ? value.toString() : '';
+                    } else if (cleanKey === 'email') {
+                        mappedRow.email = value;
+                    }
                 });
-                return mapColumns(mappedRow);
-            }).filter(row => row.nome || row.cognome || row.email);
+
+                return mappedRow;
+            }).filter(row => row.nome || row.cognome || row.email || row.telefono);
         }
 
         function mapColumns(row) {
             const mapped = {
                 nome: '',
                 cognome: '',
+                telefono: '',
                 email: ''
             };
 
+            // Prima puliamo tutte le chiavi rimuovendo spazi iniziali e finali
+            const cleanedRow = {};
             Object.keys(row).forEach(key => {
-                const lowerKey = key.toLowerCase();
-                if (lowerKey.includes('nome') || lowerKey.includes('name') || lowerKey === 'first') {
-                    mapped.nome = row[key];
-                } else if (lowerKey.includes('cognome') || lowerKey.includes('surname') || lowerKey.includes('last')) {
-                    mapped.cognome = row[key];
-                } else if (lowerKey.includes('email') || lowerKey.includes('mail')) {
-                    mapped.email = row[key];
+                const cleanKey = key.trim().toLowerCase();
+                cleanedRow[cleanKey] = row[key];
+            });
+
+            // Ora mappiamo con le chiavi pulite
+            Object.keys(cleanedRow).forEach(cleanKey => {
+                const value = cleanedRow[cleanKey];
+                
+                // Nome: riconosce nome, name, first
+                if (cleanKey.includes('nome') || cleanKey.includes('name') || cleanKey === 'first') {
+                    mapped.nome = value;
+                }
+                // Cognome: riconosce cognome, surname, last
+                else if (cleanKey.includes('cognome') || cleanKey.includes('surname') || cleanKey.includes('last')) {
+                    mapped.cognome = value;
+                }
+                // Telefono: riconosce telefono, phone, tel, numero
+                else if (cleanKey.includes('telefono') || cleanKey.includes('phone') || cleanKey.includes('tel') || cleanKey.includes('numero')) {
+                    mapped.telefono = value;
+                }
+                // Email: riconosce email, mail
+                else if (cleanKey.includes('email') || cleanKey.includes('mail')) {
+                    mapped.email = value;
                 }
             });
+
+            // Convertiamo il telefono in stringa se è un numero
+            if (mapped.telefono && typeof mapped.telefono === 'number') {
+                mapped.telefono = mapped.telefono.toString();
+            }
 
             return mapped;
         }
@@ -1304,6 +1631,7 @@
                             <tr style="background: #f8f9fa;">
                                 <th style="padding: 10px; border: 1px solid #ddd;">Nome</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">Cognome</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">Telefono</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">Email</th>
                             </tr>
                         </thead>
@@ -1315,6 +1643,7 @@
                     <tr>
                         <td style="padding: 10px; border: 1px solid #ddd;">${row.nome || ''}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${row.cognome || ''}</td>
+                        <td style="padding: 10px; border: 1px solid #ddd;">${row.telefono || ''}</td>
                         <td style="padding: 10px; border: 1px solid #ddd;">${row.email || ''}</td>
                     </tr>
                 `;
@@ -1344,6 +1673,7 @@
                             id: Date.now() + Math.random(),
                             nome: row.nome || '',
                             cognome: row.cognome || '',
+                            telefono: row.telefono || '',
                             email: row.email,
                             commerciale: '',
                             stato: 'nuovo',
@@ -1403,6 +1733,9 @@
             document.getElementById('recovery-rate-percent').textContent = recoveryRate + '%';
             document.getElementById('recovered-leads').textContent = recoveredLeads;
             document.getElementById('active-leads').textContent = activeLeads;
+            
+            // Render Commercial Export Grid
+            renderCommercialExportGrid();
             
             // Calculate daily call average
             const allActivities = leads.flatMap(lead => 
@@ -1536,20 +1869,120 @@
             reportsContainer.innerHTML = reportHTML || '<p>Nessuna attività registrata negli ultimi 5 giorni.</p>';
         }
 
+        function renderCommercialExportGrid() {
+            const commercialGrid = document.getElementById('commercial-export-grid');
+            
+            let gridHTML = '';
+            commerciali.forEach(commerciale => {
+                const leadPerCommerciale = leads.filter(lead => lead.commerciale === commerciale);
+                const leadOkCount = leadPerCommerciale.filter(lead => lead.stato === 'lead-ok').length;
+                const totalCount = leadPerCommerciale.length;
+                
+                gridHTML += `
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 15px; backdrop-filter: blur(10px);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: white;">${commerciale}</h4>
+                            <div style="background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">
+                                <strong>${leadOkCount}</strong> Lead Ok
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 10px; font-size: 0.9em; color: rgba(255,255,255,0.8);">
+                            Totale assegnati: <strong>${totalCount}</strong>
+                        </div>
+                        <button onclick="exportForCommercial('${commerciale}')" 
+                                style="width: 100%; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s ease;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+                                onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                            📤 Esporta Lead Ok
+                        </button>
+                        ${totalCount > 0 ? `
+                            <button onclick="exportAllForCommercial('${commerciale}')" 
+                                    style="width: 100%; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; cursor: pointer; margin-top: 5px; font-size: 0.8em; transition: all 0.3s ease;"
+                                    onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                                    onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                                📋 Esporta Tutti i Lead
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            commercialGrid.innerHTML = gridHTML;
+        }
+
+        function exportForCommercial(commerciale) {
+            const leadOkForCommercial = leads.filter(lead => 
+                lead.commerciale === commerciale && lead.stato === 'lead-ok'
+            );
+            
+            if (leadOkForCommercial.length === 0) {
+                alert(`⚠️ Nessun Lead Ok trovato per ${commerciale}`);
+                return;
+            }
+            
+            const csv = `LEAD OK PER ${commerciale.toUpperCase()} - ${new Date().toLocaleDateString()}\n\n` +
+                       `Nome,Cognome,Telefono,Email,Note,Data Recupero,Ora Recupero\n` + 
+                       leadOkForCommercial.map(lead => {
+                           const dataRecupero = lead.attivita.find(a => a.stato === 'lead-ok')?.timestamp || '';
+                           const dateObj = dataRecupero ? new Date(dataRecupero) : new Date();
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},"${lead.note}",${dateObj.toLocaleDateString()},${dateObj.toLocaleTimeString()}`;
+                       }).join('\n') + 
+                       `\n\n📊 RIEPILOGO:\n` +
+                       `Totale Lead Ok: ${leadOkForCommercial.length}\n` +
+                       `Commerciale: ${commerciale}\n` +
+                       `Data Export: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n` +
+                       `\n💡 PROSSIMI PASSI:\n` +
+                       `1. Contattare i lead entro 24h\n` +
+                       `2. Aggiornare il CRM con gli esiti\n` +
+                       `3. Preparare documentazione per clienti interessati`;
+            
+            downloadCSV(csv, `lead-ok-${commerciale.replace(' ', '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`);
+            
+            // Mostra messaggio di successo con istruzioni
+            alert(`✅ Export completato per ${commerciale}!\n\n📊 ${leadOkForCommercial.length} Lead Ok esportati\n\n💡 Il file è pronto per essere inviato via WhatsApp o Email al commerciale.`);
+        }
+
+        function exportAllForCommercial(commerciale) {
+            const allLeadsForCommercial = leads.filter(lead => lead.commerciale === commerciale);
+            
+            if (allLeadsForCommercial.length === 0) {
+                alert(`⚠️ Nessun lead trovato per ${commerciale}`);
+                return;
+            }
+            
+            const csv = `TUTTI I LEAD PER ${commerciale.toUpperCase()} - ${new Date().toLocaleDateString()}\n\n` +
+                       `Nome,Cognome,Telefono,Email,Stato,Note,Data Assegnazione,Ultima Attività\n` + 
+                       allLeadsForCommercial.map(lead => {
+                           const ultimaAttivita = lead.attivita.length > 0 ? 
+                               new Date(lead.attivita[lead.attivita.length - 1].timestamp).toLocaleDateString() : 'N/A';
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${statusConfig[lead.stato].label},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()},${ultimaAttivita}`;
+                       }).join('\n') + 
+                       `\n\n📊 RIEPILOGO PER ${commerciale}:\n` +
+                       `Totale Lead: ${allLeadsForCommercial.length}\n` +
+                       `Lead Ok: ${allLeadsForCommercial.filter(l => l.stato === 'lead-ok').length}\n` +
+                       `In Lavorazione: ${allLeadsForCommercial.filter(l => !['lead-ok', 'non-interessato', 'mai-reperibile'].includes(l.stato)).length}\n` +
+                       `Chiusi: ${allLeadsForCommercial.filter(l => l.stato === 'non-interessato' || l.stato === 'mai-reperibile').length}\n` +
+                       `Data Export: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+            
+            downloadCSV(csv, `tutti-lead-${commerciale.replace(' ', '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`);
+            
+            alert(`✅ Export completo per ${commerciale}!\n\n📊 ${allLeadsForCommercial.length} lead totali esportati`);
+        }
+
         function exportLeadOk() {
             const leadOk = leads.filter(lead => lead.stato === 'lead-ok');
-            const csv = 'Nome,Cognome,Email,Commerciale,Note,Data Recupero\n' + 
+            const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Note,Data Recupero\n' + 
                        leadOk.map(lead => {
                            const dataRecupero = lead.attivita.find(a => a.stato === 'lead-ok')?.timestamp || '';
-                           return `${lead.nome},${lead.cognome},${lead.email},${lead.commerciale},"${lead.note}",${new Date(dataRecupero).toLocaleDateString()}`;
+                           return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale},"${lead.note}",${new Date(dataRecupero).toLocaleDateString()}`;
                        }).join('\n');
             
             downloadCSV(csv, `lead-ok-${new Date().toISOString().split('T')[0]}.csv`);
         }
 
         function exportAllLeads() {
-            const csv = 'Nome,Cognome,Email,Commerciale,Stato,Note,Data Creazione\n' + 
-                       leads.map(lead => `${lead.nome},${lead.cognome},${lead.email},${lead.commerciale},${lead.stato},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()}`).join('\n');
+            const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Stato,Note,Data Creazione\n' + 
+                       leads.map(lead => `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale},${lead.stato},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()}`).join('\n');
             
             downloadCSV(csv, `tutti-lead-${new Date().toISOString().split('T')[0]}.csv`);
         }
@@ -1671,9 +2104,9 @@
 
             if (exportFirst && toArchive.length > 0) {
                 // Export archived leads
-                const csv = 'Nome,Cognome,Email,Commerciale,Stato,Note,Data Creazione,Data Archiviazione\n' + 
+                const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Stato,Note,Data Creazione,Data Archiviazione\n' + 
                            toArchive.map(lead => 
-                               `${lead.nome},${lead.cognome},${lead.email},${lead.commerciale},${lead.stato},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()},${new Date().toLocaleDateString()}`
+                               `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale},${lead.stato},"${lead.note}",${new Date(lead.dataCreazione).toLocaleDateString()},${new Date().toLocaleDateString()}`
                            ).join('\n');
                 
                 downloadCSV(csv, `lead-archiviati-${new Date().toISOString().split('T')[0]}.csv`);
@@ -1834,11 +2267,15 @@
         // Close modal when clicking outside
         window.onclick = function(event) {
             const leadModal = document.getElementById('leadModal');
+            const commercialModal = document.getElementById('commercialModal');
             const archiveModal = document.getElementById('archiveModal');
             const cleanupModal = document.getElementById('cleanupModal');
             
             if (event.target == leadModal) {
                 leadModal.style.display = "none";
+            }
+            if (event.target == commercialModal) {
+                closeCommercialModal();
             }
             if (event.target == archiveModal) {
                 archiveModal.style.display = "none";
