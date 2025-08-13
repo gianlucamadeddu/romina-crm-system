@@ -2207,13 +2207,28 @@
             window.URL.revokeObjectURL(url);
         }
 
-        // Archive and cleanup functions - placeholders
+        // Archive and cleanup functions - COMPLETE Firebase Implementation
         window.showArchiveOptions = function() {
-            alert('🚧 Funzione Archiviazione in sviluppo');
+            const leadOk = leads.filter(lead => lead.stato === 'lead-ok').length;
+            const nonInteressato = leads.filter(lead => lead.stato === 'non-interessato').length;
+            const maiReperibile = leads.filter(lead => lead.stato === 'mai-reperibile').length;
+            const total = leadOk + nonInteressato + maiReperibile;
+
+            document.getElementById('archive-summary').innerHTML = `
+                <h4>📊 Summary Lead da Archiviare:</h4>
+                <p>✅ Lead Ok: <strong>${leadOk}</strong> (recuperati con successo)</p>
+                <p>💔 Non interessati: <strong>${nonInteressato}</strong></p>
+                <p>❌ Mai reperibili: <strong>${maiReperibile}</strong></p>
+                <hr style="margin: 10px 0;">
+                <p><strong>Totale da archiviare: ${total} lead</strong></p>
+                <p style="color: #27ae60;">Resteranno attivi: <strong>${leads.length - total} lead</strong></p>
+            `;
+
+            document.getElementById('archiveModal').style.display = 'block';
         };
 
         window.showCleanupOptions = function() {
-            alert('🚧 Funzione Pulizia in sviluppo');
+            document.getElementById('cleanupModal').style.display = 'block';
         };
 
         window.closeArchiveModal = function() {
@@ -2222,6 +2237,135 @@
 
         window.closeCleanupModal = function() {
             document.getElementById('cleanupModal').style.display = 'none';
+        };
+
+        window.executeArchive = async function() {
+            const archiveLeadOk = document.getElementById('archive-lead-ok').checked;
+            const archiveNonInteressato = document.getElementById('archive-non-interessato').checked;
+            const archiveMaiReperibile = document.getElementById('archive-mai-reperibile').checked;
+            const exportFirst = document.getElementById('export-before-archive').checked;
+
+            let toArchive = [];
+
+            if (archiveLeadOk) {
+                toArchive = toArchive.concat(leads.filter(lead => lead.stato === 'lead-ok'));
+            }
+            if (archiveNonInteressato) {
+                toArchive = toArchive.concat(leads.filter(lead => lead.stato === 'non-interessato'));
+            }
+            if (archiveMaiReperibile) {
+                toArchive = toArchive.concat(leads.filter(lead => lead.stato === 'mai-reperibile'));
+            }
+
+            if (toArchive.length === 0) {
+                alert('⚠️ Nessun lead selezionato per l\'archiviazione.');
+                return;
+            }
+
+            const confirmMessage = `⚠️ CONFERMA ARCHIVIAZIONE\n\nStai per archiviare ${toArchive.length} lead.\nQuesta operazione li rimuoverà dal sistema attivo.\n\nContinuare?`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                if (exportFirst && toArchive.length > 0) {
+                    // Export archived leads
+                    const csv = 'Nome,Cognome,Telefono,Email,Commerciale,Stato,Note,Data Creazione,Data Archiviazione\n' + 
+                               toArchive.map(lead => {
+                                   const dataCreazione = lead.dataCreazione?.seconds ? 
+                                       new Date(lead.dataCreazione.seconds * 1000).toLocaleDateString() : 
+                                       new Date(lead.dataCreazione).toLocaleDateString();
+                                   return `${lead.nome},${lead.cognome},${lead.telefono || ''},${lead.email},${lead.commerciale || ''},${lead.stato},"${lead.note || ''}",${dataCreazione},${new Date().toLocaleDateString()}`;
+                               }).join('\n');
+                    
+                    downloadCSV(csv, `lead-archiviati-${new Date().toISOString().split('T')[0]}.csv`);
+                }
+
+                // Delete from Firebase
+                for (const lead of toArchive) {
+                    await deleteLeadFromFirebase(lead.id);
+                }
+
+                alert(`✅ Archiviati con successo ${toArchive.length} lead!`);
+                closeArchiveModal();
+                
+            } catch (error) {
+                console.error('Error archiving leads:', error);
+                alert('Errore durante l\'archiviazione. Riprova.');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.executeCleanup = async function() {
+            const cleanupAllLeads = document.getElementById('cleanup-all-leads').checked;
+            const cleanupActivityLog = document.getElementById('cleanup-activity-log').checked;
+            const exportFirst = document.getElementById('export-before-cleanup').checked;
+
+            if (!cleanupAllLeads && !cleanupActivityLog) {
+                alert('⚠️ Seleziona almeno un\'opzione di pulizia.');
+                return;
+            }
+
+            const confirmMessage = `⚠️ ATTENZIONE PULIZIA SISTEMA!\n\nStai per eliminare:\n${cleanupAllLeads ? '- TUTTI i ' + leads.length + ' lead\n' : ''}${cleanupActivityLog ? '- Tutti i log di attività\n' : ''}\nQuesta operazione è IRREVERSIBILE!\n\nDigita "CONFERMA" per procedere:`;
+            
+            const userConfirm = prompt(confirmMessage);
+            if (userConfirm !== 'CONFERMA') {
+                alert('Operazione annullata.');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                if (exportFirst) {
+                    // Export everything before cleanup
+                    if (cleanupAllLeads) {
+                        exportAllLeads();
+                        exportActivityLog();
+                        exportMonthlyReport();
+                    }
+                    // Wait a moment for downloads to start
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+                if (cleanupAllLeads) {
+                    // Delete all leads from Firebase
+                    for (const lead of leads) {
+                        await deleteLeadFromFirebase(lead.id);
+                    }
+                    alert(`🧹 Eliminati ${leads.length} lead dal sistema!`);
+                }
+
+                if (cleanupActivityLog && !cleanupAllLeads) {
+                    // Clean activity logs only
+                    for (const lead of leads) {
+                        const cleanedAttivita = [{
+                            azione: 'Sistema ripulito',
+                            stato: lead.stato,
+                            timestamp: new Date().toISOString(),
+                            automatico: true,
+                            dettagli: 'Log precedenti eliminati durante pulizia mensile'
+                        }];
+                        
+                        await updateLeadInFirebase(lead.id, {
+                            attivita: cleanedAttivita
+                        });
+                    }
+                    alert('🧹 Log attività puliti per tutti i lead!');
+                }
+
+                closeCleanupModal();
+                
+            } catch (error) {
+                console.error('Error during cleanup:', error);
+                alert('Errore durante la pulizia. Riprova.');
+            } finally {
+                showLoading(false);
+            }
         };
 
         // Event listeners
